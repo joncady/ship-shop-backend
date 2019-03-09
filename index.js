@@ -1,12 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const request = require('request');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const { url, options } = require('./Config');
 let newId = 3;
-let bidId = 3;
+let bidId = 5;
+const messageUrl = "http://woodle.ngrok.io/sendSms";
 
 var mongoClient = require("mongodb").MongoClient;
 
@@ -222,8 +224,104 @@ app.post("/createBid", (req, res) => {
     mongoClient.connect(url, (err, client) => {
         if (err) res.send({ status: 500, message: "Unable to connect to server!" });
         let bidRef = client.db("data").collection("bids");
+        let containerRef = client.db("data").collection("containers");
         bidRef.insertOne(dataObj, () => {
-            res.send(dataObj);
+            containerRef.findOne({ id: containerId })
+                .then((data) => {
+                    let { currentBidId, tempActual, humidityActual, fillActual, co2Actual, tempStated, humidityStated, fillStated, co2Stated, } = data;
+                    if (currentBidId) {
+                        console.log("eventered");
+                        bidRef.findOne({ id: currentBidId })
+                            .then((data2) => {
+                                let { reservePrice: oldReserve, userId: id2 } = data2;
+                                if (reservePrice > oldReserve) {
+                                    let tempDelta = Math.abs(tempActual - tempStated);
+                                    let humidityDelta = Math.abs(humidityActual - humidityStated);
+                                    let fillDelta = Math.abs(fillActual - fillStated);
+                                    let co2Delta = Math.abs(co2Actual - co2Stated);
+                                    console.log(tempDelta < tempDev, humidityDelta < humidityDev, fillDelta < fillDev, co2Delta < co2Dev);
+                                    if (tempDelta < tempDev) {
+                                        res.send({ status: 200, message: "Bid added." });
+                                    } else if (humidityDelta < humidityDev) {
+                                        res.send({ status: 200, message: "Bid added." });
+                                    } else if (fillDelta < fillDev) {
+                                        res.send({ status: 200, message: "Bid added." });
+                                    } else if (co2Delta < co2Dev) {
+                                        res.send({ status: 200, message: "Bid added." });
+                                    } else {
+                                        //gained
+                                        let options1 = {
+                                            method: 'POST',
+                                            url: 'http://woodle.ngrok.io/sendSms',
+                                            headers:
+                                            {
+                                                'Postman-Token': '47104849-df99-4563-b5cf-acdbdbf1a711',
+                                                'cache-control': 'no-cache',
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: {
+                                                userid: userId, message: `Congratulations, you are now top bidder on the shipment of container ${containerId}. 
+                                        You will be notified of any further changes. Thank you for using Ship Shop!}`
+                                            },
+                                            json: true
+                                        };
+
+                                        let options2 = {
+                                            method: 'POST',
+                                            url: 'http://woodle.ngrok.io/sendSms',
+                                            headers:
+                                            {
+                                                'Postman-Token': '47104849-df99-4563-b5cf-acdbdbf1a711',
+                                                'cache-control': 'no-cache',
+                                                'Content-Type': 'application/json'
+                                            },
+                                            body: {
+                                                userid: userId, message: `Unfortunately, the shipment in container ${containerId} exceeded bid quality parameters.
+                                                Your current bid is therefore void, you may place another bid at any time before delivery. Thank you for using Ship Shop!`
+                                            },
+                                            json: true
+                                        };
+                                        request(options1, (err, res) => console.log("message 1 sent"));
+                                        // lost
+                                        request(options2, (err, res) => console.log("message 2 sent"));
+                                        let dataObj = {
+                                            currentBidId: String(bidId - 1)
+                                        }
+                                        containerRef.update({ id: containerId }, {
+                                            $set: {
+                                                ...dataObj
+                                            }
+                                        }).then(() => {
+                                            res.send({ status: 200, message: "Bid added." });
+                                        });
+                                    }
+                                } else {
+                                    res.send({ status: 200, message: "Bid added." });
+                                }
+                            });
+                    } else {
+                        let dataObj = {
+                            currentBidId: String(bidId - 1)
+                        }
+                        containerRef.update({ id: containerId }, {
+                            $set: {
+                                ...dataObj
+                            }
+                        }).then(() => {
+                            request.post(messageUrl, {
+                                body: {
+                                    id: userId,
+                                    message: `Congratulations, you are now top bidder on the shipment of container ${containerId}. 
+                                You will be notified of any further changes. Thank you for using Ship Shop!`
+                                }
+                            });
+                            res.send({ status: 200, message: "Bid added." });
+                        });
+                    }
+                })
+                .catch((err) => {
+                    res.send({ status: 500, message: err });
+                });
         });
     });
 });
@@ -291,8 +389,8 @@ app.get("/reset", (req, res) => {
                 ...dataObj
             }
         })
-        .then(() => res.send({ status: 200, message: "Demo reset." }))
-        .catch((err) => res.send({ status: 400, message: err}));
+            .then(() => res.send({ status: 200, message: "Demo reset." }))
+            .catch((err) => res.send({ status: 400, message: err }));
     });
 });
 
