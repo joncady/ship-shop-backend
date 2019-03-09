@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 
 // adds new container
 app.post("/addContainer", (req, res) => {
-    let { weight, origin, destination, shipDate, arriveDate, freshness, highestBid, name } = req.body;
+    let { weight, origin, destination, shipDate, arriveDate, freshness, highestBid, name, tempStated, co2Stated, humidityStated } = req.body;
     newId += 1;
     let dataObj = {
         id: String(newId),
@@ -34,7 +34,10 @@ app.post("/addContainer", (req, res) => {
         arriveDate,
         freshness,
         highestBid,
-        name
+        name,
+        tempStated,
+        co2Stated,
+        humidityStated
     }
     mongoClient.connect(url, (err, client) => {
         let containersData = client.db("data").collection("containers");
@@ -70,9 +73,9 @@ app.post("/receiveData", (req, res) => {
                     time,
                     lat,
                     long,
-                    tempActual,
-                    humidityActual,
-                    co2Actual
+                    tempActual: temp,
+                    humidityActual: humidity,
+                    co2Actual: co2
                 };
                 containerData.updateOne({ id: containerId }, {
                     $set: {
