@@ -198,7 +198,7 @@ app.get("/getAllBids", (req, res) => {
     mongoClient.connect(url, (err, client) => {
         let bidRef = client.db("data").collection("bids");
         bidRef.find({ containerId: containerId }).toArray().then(data => {
-            res.send({ containers: data });
+            res.send({ bids: data });
         });
     });
 });
