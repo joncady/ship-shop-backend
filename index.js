@@ -279,4 +279,21 @@ app.post("/makeBid", (req, res) => {
     });
 });
 
+app.get("/reset", (req, res) => {
+    mongoClient.connect(url, (err, client) => {
+        let dataObj = {
+            currentBidId: "3"
+        }
+        if (err) res.send({ status: 500, message: "Unable to connect to server!" });
+        let containerData = client.db("data").collection("containers");
+        containerData.update({ id: "666" }, {
+            $set: {
+                ...dataObj
+            }
+        })
+        .then(() => res.send({ status: 200, message: "Demo reset." }))
+        .catch((err) => res.send({ status: 400, message: err}));
+    });
+});
+
 app.listen(PORT, () => console.log(`Launched! at port ${PORT}`));
