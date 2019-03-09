@@ -139,12 +139,14 @@ app.get("/getAllContainers", (req, res) => {
 app.post("/createUser", (req, res) => {
     let { name, address, phone, email, passHash } = req.body;
     let dataObj = {
+        id: newId,
         name,
         address,
         phone,
         email,
         passHash
     }
+    newId += 1;
     mongoClient.connect(url, (err, client) => {
         if (err) res.send({ status: 500, message: "Unable to connect to server!" });
         let usersRef = client.db("data").collection("users");
