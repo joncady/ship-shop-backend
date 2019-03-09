@@ -21,7 +21,7 @@ app.get("/", (req, res) => {
 
 // backend APIs
 
-// adds new container
+// adds new container (done)
 app.post("/addContainer", (req, res) => {
     let { weight, origin, destination, shipDate, arriveDate, freshness, highestBid, name, tempStated, co2Stated, humidityStated } = req.body;
     newId += 1;
@@ -49,7 +49,7 @@ app.post("/addContainer", (req, res) => {
 
 // Initiates two inserts into the database, containers and readings collection
 app.post("/receiveData", (req, res) => {
-    let { time, lat, long, temp, humidity, co2, containerId } = req.body;
+    let { time, lat, long, temp, humidity, co2, containerId, fill } = req.body;
     mongoClient.connect(url, (err, client) => {
         let dataObj = {
             id: String(containerId),
@@ -58,7 +58,8 @@ app.post("/receiveData", (req, res) => {
             long,
             temp,
             humidity,
-            co2
+            co2,
+            fill
         }
         let readingsData = client.db("data").collection("readings");
         let containerData = client.db("data").collection("containers");
@@ -75,7 +76,8 @@ app.post("/receiveData", (req, res) => {
                     long,
                     tempActual: temp,
                     humidityActual: humidity,
-                    co2Actual: co2
+                    co2Actual: co2,
+                    fillActual: fill
                 };
                 containerData.updateOne({ id: containerId }, {
                     $set: {
@@ -96,7 +98,7 @@ app.post("/receiveData", (req, res) => {
 // front end APIs
 
 // get reading based on container id
-app.get("/getReadings", (req, res) => {
+app.get("/getReading", (req, res) => {
     mongoClient.connect(url, (err, client) => {
         let id = req.query.id;
         if (err) res.send({ status: 500, message: "Unable to connect to server!" });
@@ -191,7 +193,7 @@ app.get("/getBid", (req, res) => {
 
 // creates a bid from scratch
 app.post("/createBid", (req, res) => {
-    let { userId, tempDev, humidityDev, co2Dev, fillDev, reservePrice, collectionId } = req.body;
+    let { userId, tempDev, humidityDev, co2Dev, fillDev, reservePrice, containerId } = req.body;
     let dataObj = {
         id: String(bidId),
         userId,
@@ -200,7 +202,7 @@ app.post("/createBid", (req, res) => {
         co2Dev,
         fillDev,
         reservePrice,
-        collectionId
+        containerId
     }
     mongoClient.connect(url, (err, client) => {
         if (err) res.send({ status: 500, message: "Unable to connect to server!" });
@@ -208,6 +210,24 @@ app.post("/createBid", (req, res) => {
         bidRef.insertOne(dataObj, () => {
             res.send(dataObj);
         });
+    });
+});
+
+app.post("/topBid", (req, res) => {
+    let bidId = req.body.bidId;
+    let containerId = req.body.containerId;
+    let dataObj = {
+        currentBidId: bidId
+    }
+    mongoClient.connect(url, (err, client) => {
+        let containersData = client.db("data").collection("containers");
+        containersData.updateOne({ id: containerId }, {
+            $set: {
+                ...dataObj
+            }
+        }, { upsert: true })
+            .then(() => res.send({ status: 200, message: "success" }))
+            .catch((err) => res.send({ status: 500, message: err }));
     });
 });
 
