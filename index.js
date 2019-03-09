@@ -4,11 +4,9 @@ const request = require('request');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const cors = require('cors');
-const bcrypt = require('bcrypt');
-const { url, options } = require('./Config');
+const { url } = require('./Config');
 let newId = 3;
 let bidId = 5;
-const messageUrl = "http://woodle.ngrok.io/sendSms";
 
 var mongoClient = require("mongodb").MongoClient;
 
@@ -308,13 +306,23 @@ app.post("/createBid", (req, res) => {
                                 ...dataObj
                             }
                         }).then(() => {
-                            request.post(messageUrl, {
+                            let options = {
+                                method: 'POST',
+                                url: 'http://woodle.ngrok.io/sendSms',
+                                headers:
+                                {
+                                    'Postman-Token': '47104849-df99-4563-b5cf-acdbdbf1a711',
+                                    'cache-control': 'no-cache',
+                                    'Content-Type': 'application/json'
+                                },
                                 body: {
-                                    id: userId,
-                                    message: `Congratulations, you are now top bidder on the shipment of container ${containerId}. 
-                                You will be notified of any further changes. Thank you for using Ship Shop!`
-                                }
-                            });
+                                    userid: userId, message: `Congratulations, you are now top bidder on the shipment of container ${containerId}. 
+                            You will be notified of any further changes. Thank you for using Ship Shop!}`
+                                },
+                                json: true
+                            };
+
+                            request(options, (err, res) => console.log("message sent"));
                             res.send({ status: 200, message: "Bid added." });
                         });
                     }
