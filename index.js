@@ -6,7 +6,7 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const { url, options } = require('./Config');
 let newId = 3;
-let bidId = 1;
+let bidId = 3;
 
 var mongoClient = require("mongodb").MongoClient;
 
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 
 // adds new container (done)
 app.post("/addContainer", (req, res) => {
-    let { weight, origin, destination, shipDate, arriveDate, freshness, highestBid, name, tempStated, co2Stated, humidityStated } = req.body;
+    let { weight, origin, destination, shipDate, arriveDate, freshness, highestBid, name, fillStated, tempStated, co2Stated, humidityStated } = req.body;
     newId += 1;
     let dataObj = {
         id: String(newId),
@@ -35,6 +35,7 @@ app.post("/addContainer", (req, res) => {
         freshness,
         highestBid,
         name,
+        fillStated,
         tempStated,
         co2Stated,
         humidityStated
@@ -191,6 +192,17 @@ app.get("/getBid", (req, res) => {
     });
 });
 
+app.get("/getAllBids", (req, res) => {
+    let { containerId } = req.query;
+    console.log(containerId);
+    mongoClient.connect(url, (err, client) => {
+        let bidRef = client.db("data").collection("bids");
+        bidRef.find({ containerId: containerId }).toArray().then(data => {
+            res.send({ containers: data });
+        });
+    });
+});
+
 // creates a bid from scratch
 app.post("/createBid", (req, res) => {
     let { userId, tempDev, humidityDev, co2Dev, fillDev, reservePrice, containerId } = req.body;
@@ -204,6 +216,7 @@ app.post("/createBid", (req, res) => {
         reservePrice,
         containerId
     }
+    bidId += 1;
     mongoClient.connect(url, (err, client) => {
         if (err) res.send({ status: 500, message: "Unable to connect to server!" });
         let bidRef = client.db("data").collection("bids");
@@ -213,6 +226,7 @@ app.post("/createBid", (req, res) => {
     });
 });
 
+// replaces top bid with a new one
 app.post("/topBid", (req, res) => {
     let bidId = req.body.bidId;
     let containerId = req.body.containerId;
@@ -230,6 +244,8 @@ app.post("/topBid", (req, res) => {
             .catch((err) => res.send({ status: 500, message: err }));
     });
 });
+
+// return 
 
 // bid made by the user
 app.post("/makeBid", (req, res) => {
